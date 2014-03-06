@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"mime/multipart"
 	"net/http"
@@ -23,12 +24,14 @@ var (
 	postURL   string
 	patinc    string
 	keepFiles bool
+	noscan    bool
 	verbose   bool
 )
 
 func main() {
 	flag.StringVar(&patinc, "i", "*", "include pattern")
 	flag.BoolVar(&keepFiles, "k", false, "keep files")
+	flag.BoolVar(&noscan, "ns", false, "no initial file scan")
 	flag.BoolVar(&verbose, "v", false, "verbose logging")
 	flag.Parse()
 	args := flag.Args()
@@ -61,6 +64,8 @@ func main() {
 		err := wat.AddWatch(arg, flags)
 		if err != nil {
 			log.Fatalln("Error creating watch:", err)
+		} else if !noscan {
+			go scan(arg)
 		}
 	}
 
@@ -71,6 +76,16 @@ func main() {
 		case err := <-wat.Error:
 			log.Fatalln("Error:", err)
 		}
+	}
+}
+
+func scan(dir string) {
+	infos, err := ioutil.ReadDir(dir)
+	if err != nil {
+		log.Fatalln("Unable to scan %q: %v", dir, err)
+	}
+	for _, info := range infos {
+		handle(filepath.Join(dir, info.Name()))
 	}
 }
 
